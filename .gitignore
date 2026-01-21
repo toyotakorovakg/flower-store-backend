@@ -102,6 +102,7 @@ activemq-data/
 
 # Virtual environments
 .env
+.env.example
 .envrc
 .venv
 env/
