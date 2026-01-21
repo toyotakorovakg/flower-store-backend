@@ -1,8 +1,12 @@
 """
 Pydantic schemas for message data.
+
+This schema defines the fields returned for chat messages.  The
+``model_config`` attribute enables Pydantic v2 to read data from ORM
+objects when validating.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class MessageOut(BaseModel):
@@ -16,5 +20,4 @@ class MessageOut(BaseModel):
     is_read: bool
     metadata: dict | None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

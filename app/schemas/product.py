@@ -1,8 +1,12 @@
 """
 Pydantic schemas for product data.
+
+Represents a product returned from the API.  When combined with
+``model_config = ConfigDict(from_attributes=True)``, instances can be created
+directly from SQLAlchemy ORM objects using the ``model_validate`` method.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ProductOut(BaseModel):
@@ -21,5 +25,4 @@ class ProductOut(BaseModel):
     is_active: bool
     is_featured: bool
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

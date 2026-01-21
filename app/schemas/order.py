@@ -1,8 +1,12 @@
 """
 Pydantic schemas for order data.
+
+Defines the response model for order information.  The ``model_config``
+attribute enables validation from SQLAlchemy ORM instances when using
+``model_validate``.  See the Pydantic v2 migration guide for details.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class OrderOut(BaseModel):
@@ -19,5 +23,4 @@ class OrderOut(BaseModel):
     notes: str | None
     internal_notes: str | None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

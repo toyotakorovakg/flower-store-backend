@@ -1,8 +1,12 @@
 """
 Pydantic schemas for user representations.
+
+This version uses Pydantic v2's configuration style.  The ``model_config``
+attribute is set so that Pydantic will read attributes from SQLAlchemy ORM
+objects when validating, replacing the deprecated ``orm_mode`` option.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class User(BaseModel):
@@ -12,5 +16,6 @@ class User(BaseModel):
     is_active: bool
     exists: bool
 
-    class Config:
-        orm_mode = True
+    # Enable reading attributes from ORM objects.  See
+    # https://docs.pydantic.dev/latest/usage/models/#from-attributes-and-arbitrary-class-instances
+    model_config = ConfigDict(from_attributes=True)
