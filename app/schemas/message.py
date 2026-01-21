@@ -3,10 +3,11 @@ Pydantic schemas for message data.
 
 This schema defines the fields returned for chat messages.  The
 ``model_config`` attribute enables Pydantic v2 to read data from ORM
-objects when validating.
+objects when validating.  We alias the ``metadata_json`` attribute from
+the model to the ``metadata`` field in the API response.
 """
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MessageOut(BaseModel):
@@ -18,6 +19,9 @@ class MessageOut(BaseModel):
     chat_type: str
     is_from_client: bool
     is_read: bool
-    metadata: dict | None
+    # В модели поле называется metadata_json, но пользователям API
+    # это поле по‑прежнему возвращается как «metadata».
+    metadata: dict | None = Field(None, alias="metadata_json")
 
-    model_config = ConfigDict(from_attributes=True)
+    # Параметр populate_by_name позволяет обращаться к полю «metadata_json» как к «metadata»
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
