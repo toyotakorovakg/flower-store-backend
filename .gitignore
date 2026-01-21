@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+# Python byte-compiled files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -26,7 +26,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# PyInstaller build files
+# PyInstaller
 *.manifest
 *.spec
 
@@ -34,7 +34,7 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Unit test / coverage
 htmlcov/
 .tox/
 .nox/
@@ -64,7 +64,7 @@ instance/
 # Scrapy stuff
 .scrapy
 
-# Sphinx documentation
+# Sphinx docs
 docs/_build/
 site/
 
@@ -72,14 +72,14 @@ site/
 .pybuilder/
 target/
 
-# Jupyter Notebook checkpoints
+# Jupyter
 .ipynb_checkpoints
 
-# IPython profiles
+# IPython
 profile_default/
 ipython_config.py
 
-# pyenv, pipenv, poetry, PDM, Pixi
+# pyenv, pipenv, poetry, PDM
 .python-version
 .pdm-python/
 .pdm-build/
@@ -97,12 +97,8 @@ rabbitmq/
 rabbitmq-data/
 activemq-data/
 
-# SageMath parsed files
-*.sage.py
-
 # Virtual environments
 .env
-.env.example
 .envrc
 .venv
 env/
@@ -111,7 +107,7 @@ ENV/
 env.bak/
 venv.bak/
 
-# IDEs and editors
+# Editors and IDEs
 .idea/
 .vscode/
 .spyderproject
@@ -120,41 +116,26 @@ venv.bak/
 .ruff_cache/
 .auxiliary/
 
-# Static type checkers caches
+# Static type checkers
 .mypy_cache/
 .dmypy.json
 dmypy.json
 .pyre/
 .pytype/
 
-# Cython debug symbols
+# Cython debug
 cython_debug/
 
-# VS Code, JetBrains and other IDE-specific files (optional)
-# .vscode/
-# .idea/
-
-# Operating system files
-.DS_Store
-Thumbs.db
-
-# Swap files
-*~
-*.swp
-*.swo
-
-# Logs and runtime files
+# Logs and temporary
 logs/
 *.log
 *.pid
 *.out
-
-# Temporary files
 tmp/
 *.tmp
 *.bak
 
-# Node (if using npm or frontend assets)
+# Node
 node_modules/
 npm-debug.log
 yarn-debug.log
@@ -166,20 +147,18 @@ docker-compose*.override.yml
 Dockerfile
 .dockerignore
 
-# Application secrets and SSL keys
+# SSL keys
 *.pem
 *.key
 *.crt
 
-# Supabase / migrations (if using)
+# Migration files (Supabase example)
 supabase/migrations/
 
 # Coverage and profiling
 coverage/
 *.prof
-*.pid
 
-# Misc
-.cache/
-*.cache
-temp/
+# System files
+.DS_Store
+Thumbs.db
