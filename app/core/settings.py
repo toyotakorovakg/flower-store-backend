@@ -36,9 +36,19 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
     def dsn(self) -> str:
-        """Возвращает DSN‑строку SQLAlchemy для базы данных."""
+        """Return the SQLAlchemy DSN string for the database.
+
+        If a full ``DATABASE_URL`` is provided it is returned after ensuring
+        it uses the asyncpg driver.  Otherwise construct a PostgreSQL DSN
+        using the individual ``DB_*`` settings.  A ValueError is raised if
+        insufficient pieces are provided.
+        """
         if self.database_url:
-            return self.database_url
+            url = self.database_url
+            # Заменяем протокол на asyncpg, если задано синхронное соединение
+            if url.startswith("postgresql://"):
+                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return url
         host = self.db_host
         port = self.db_port
         name = self.db_name
@@ -46,7 +56,8 @@ class Settings(BaseSettings):
         password = self.db_password
         if not all([host, port, name, user, password]):
             raise ValueError(
-                "Необходимо задать либо DATABASE_URL, либо все переменные DB_HOST, DB_PORT, DB_NAME, DB_USER и DB_PASSWORD"
+                "Either DATABASE_URL or all of DB_HOST, DB_PORT, DB_NAME, "
+                "DB_USER and DB_PASSWORD must be provided"
             )
         return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{name}"
 
