@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.settings import settings
@@ -33,7 +33,9 @@ from app.api.v1.endpoints import (
 )
 
 from sqlalchemy import text
-from app.db.session import async_session
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.session import async_session, get_db
+from typing import List
 
 
 def create_app() -> FastAPI:
@@ -70,12 +72,37 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router, prefix="/api/v1")
 
-    @app.get("/", summary="Root endpoint", tags=["root"])
-    async def read_root() -> dict[str, str]:
-        """Return a welcome message and hints for users."""
-        return {
-            "message": "Welcome to the Flower Store API. See /api/v1/health for DB status or /docs for documentation."
-        }
+    @app.get(
+        "/",
+        summary="List tables to verify DB connection",
+        response_model=List[str],
+        tags=["root"],
+    )
+    async def read_root(db: AsyncSession = Depends(get_db)) -> List[str]:
+        """
+        Verify database connectivity and return a list of tables.
+
+        This root endpoint queries the ``information_schema.tables`` view in the
+        connected PostgreSQL database.  It returns a JSON list of table names
+        in the ``public`` schema.  If the query fails (for example, if the
+        database credentials are invalid or the host is unreachable), a 500
+        error is raised so that the client can see a clear error message.
+        """
+        query = text(
+            """
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            ORDER BY table_name
+            """
+        )
+        try:
+            result = await db.execute(query)
+            tables = [row[0] for row in result.all()]
+            return tables
+        except Exception as exc:
+            # Provide a descriptive error to the client if the query fails.
+            raise HTTPException(status_code=500, detail=f"Database query error: {exc}") from exc
 
     @app.on_event("startup")
     async def startup_event() -> None:
