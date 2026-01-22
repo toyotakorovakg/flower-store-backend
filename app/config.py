@@ -1,25 +1,24 @@
-"""
-Application configuration definitions.
-
-This module defines a Config class that reads configuration values from environment
-variables using Pydantic. It complements the settings module in core by providing
-structured access to environment variables. Use this for database and secret keys.
-"""
-
 from pydantic import BaseSettings, Field
 
 
 class Config(BaseSettings):
-    """Configuration loaded from environment or .env file."""
+    db_host: str = Field(..., env="DB_HOST")
+    db_port: int = Field(..., env="DB_PORT")
+    db_name: str = Field(..., env="DB_NAME")
+    db_user: str = Field(..., env="DB_USER")
+    db_password: str = Field(..., env="DB_PASSWORD")
 
-    database_url: str = Field(..., env="DATABASE_URL")
+    # РЎРµРєСЂРµС‚РЅС‹Рµ РєР»СЋС‡Рё
     encryption_key: str = Field(..., env="ENCRYPTION_KEY")
     email_pepper: str = Field(..., env="EMAIL_PEPPER")
     jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
 
     class Config:
         env_file = ".env"
-        case_sensitive = True
+        case_sensitive = False
 
+    @property
+    def database_dsn(self) -> str:
+        return f"postgresql+asyncpg://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
 config = Config()
