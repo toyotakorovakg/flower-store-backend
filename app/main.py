@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.settings import settings
@@ -71,6 +71,10 @@ def create_app() -> FastAPI:
     api_router.include_router(dbinfo_endpoints.router, prefix="/dbinfo", tags=["dbinfo"])
 
     app.include_router(api_router, prefix="/api/v1")
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon():
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @app.get(
         "/",
