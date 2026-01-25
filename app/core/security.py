@@ -10,20 +10,12 @@ from __future__ import annotations
 import datetime
 from typing import Any, Dict, Optional
 
-from jose import JWTError, jwt  # python-jose
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
 
 from app.core.settings import settings
 
-# Password hashing context.
-#
-# Use the ``pbkdf2_sha256`` scheme, which derives a key using PBKDF2 with
-# SHA‑256 and a large number of iterations.  Unlike ``bcrypt``, this scheme
-# does not depend on the system's ``bcrypt`` backend and has no 72‑byte
-# input length limitation.  The ``deprecated=\"auto\"`` flag ensures that
-# previously created hashes using other schemes remain valid until they are
-# rotated.
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 ALGORITHM = "HS256"
