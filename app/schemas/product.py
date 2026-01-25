@@ -1,12 +1,31 @@
 """
-Pydantic schemas for product data.
+    Pydantic schemas for product data.
 
-Represents a product returned from the API.  When combined with
-``model_config = ConfigDict(from_attributes=True)``, instances can be created
-directly from SQLAlchemy ORM objects using the ``model_validate`` method.
+    Defines both the response model (ProductOut) and the request model
+    (ProductCreate).  The request model is used when creating new products via
+    POST requests.  Instances of these schemas can be constructed from
+    SQLAlchemy ORM objects via the ``model_validate`` method.
 """
-
+from typing import Optional
 from pydantic import BaseModel, ConfigDict
+
+
+class ProductCreate(BaseModel):
+    """Schema for creating a new product."""
+
+    sku: str
+    slug: str
+    name: str
+    description: Optional[str] = None
+    price_cents: int
+    compare_at_price_cents: Optional[int] = None
+    currency: str = "USD"
+    stock: int = 0
+    reserved_stock: int = 0
+    low_stock_threshold: int = 5
+    weight_grams: Optional[int] = None
+    is_active: bool = True
+    is_featured: bool = False
 
 
 class ProductOut(BaseModel):

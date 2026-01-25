@@ -1,12 +1,27 @@
 """
-Pydantic schemas for order data.
+    Pydantic schemas for order data.
 
-Defines the response model for order information.  The ``model_config``
-attribute enables validation from SQLAlchemy ORM instances when using
-``model_validate``.  See the Pydantic v2 migration guide for details.
+    Defines both the response model (OrderOut) and the request model
+    (OrderCreate).  The request model is used when creating orders via POST.
 """
-
+from typing import Optional
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict
+
+
+class OrderCreate(BaseModel):
+    """Schema for creating a new order."""
+
+    client_id: UUID
+    subtotal_cents: int
+    discount_cents: int = 0
+    shipping_cents: int = 0
+    tax_cents: int = 0
+    total_cents: int
+    currency: str = "USD"
+    status: str = "pending"
+    notes: Optional[str] = None
+    internal_notes: Optional[str] = None
 
 
 class OrderOut(BaseModel):
