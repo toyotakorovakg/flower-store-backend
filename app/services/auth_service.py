@@ -11,6 +11,7 @@ from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.core.security import verify_password, create_access_token, get_password_hash
 from app.db.models.customer import Customer
@@ -32,43 +33,28 @@ async def register_user(
 ) -> Optional[dict]:
     """Create a new customer account and return a token response.
 
-    If a user with the provided e‑mail already exists in either the
-    `customers` or `support_staff` table, this function returns ``None``.
-    Otherwise it creates a new ``Customer`` record, commits it and
-    returns a dictionary containing a JWT access token and the new user id.
+    If a user with the provided email already exists, returns None.
     """
-    email_hash = hash_email(email)
-
-    # Check existing customers
-    result = await db.execute(select(Customer).where(Customer.email_hash == email_hash))
-    if result.scalar_one_or_none():
-        return None
-
-    # Check support staff (prevent duplicate emails across roles)
-    result = await db.execute(select(SupportStaff).where(SupportStaff.email_hash == email_hash))
-    if result.scalar_one_or_none():
-        return None
-
-    # Hash the password
+    email_digest = hash_email(email)
     password_hash = get_password_hash(password)
 
-    # Create the customer record
     new_customer = Customer(
-        email_hash=email_hash,
+        email_hash=email_digest,
         password_hash=password_hash,
-        # The following encrypted fields are stored as plain text for simplicity.
         full_name_enc=full_name,
         phone_enc=phone,
         address_enc=address,
         is_active=True,
         is_verified=False,
     )
-
     db.add(new_customer)
-    await db.commit()
-    await db.refresh(new_customer)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        return None
 
-    # Issue JWT token for the new customer
+    await db.refresh(new_customer)
     token = create_access_token(
         subject=str(new_customer.id),
         additional_claims={"role": "customer"},
@@ -84,16 +70,16 @@ async def authenticate_user(
 ) -> tuple[Optional[str], Optional[str]]:
     """Authenticate a user by email and password.
 
-    Returns a tuple of (user_id, role) on success or (None, None) on
-    failure.  Searches both the customers and support_staff tables. For
-    customers, the user role is ``customer``; for support staff, it is the
-    value of the ``role`` column (e.g. ``support`` or ``admin``).
+    Returns a tuple of (user_id, role) on success or (None, None) on failure.
+    Searches both the customers and support_staff tables. For customers,
+    the user role is "customer"; for support staff, it is the value of
+    the "role" column (e.g. "support" or "admin").
     """
-    email_hash = hash_email(email)
+    email_digest = hash_email(email)
 
     # Try customer
     result = await db.execute(
-        select(Customer).where(Customer.email_hash == email_hash)
+        select(Customer).where(Customer.email_hash == email_digest)
     )
     customer = result.scalar_one_or_none()
     if customer and verify_password(password, customer.password_hash):
@@ -101,7 +87,7 @@ async def authenticate_user(
 
     # Try support staff
     result = await db.execute(
-        select(SupportStaff).where(SupportStaff.email_hash == email_hash)
+        select(SupportStaff).where(SupportStaff.email_hash == email_digest)
     )
     staff = result.scalar_one_or_none()
     if staff and verify_password(password, staff.password_hash):
@@ -114,15 +100,13 @@ async def login(
 ) -> Optional[dict]:
     """Attempt to log in the user and return a token response.
 
-    This implementation adds basic brute‑force protection. It tracks the
-    number of failed login attempts on each account and temporarily locks
-    the account after a configurable number of consecutive failures.
+    Adds basic brute‑force protection by tracking failed login attempts and
+    locking accounts after repeated failures.
     """
-    email_hash = hash_email(email)
+    email_digest = hash_email(email)
     now = utcnow()
 
     async def _process_failed_login(user) -> None:
-        """Increment failed count and lock account if threshold exceeded."""
         current = user.failed_login_count or 0
         current += 1
         if current >= MAX_FAILED_ATTEMPTS:
@@ -134,17 +118,15 @@ async def login(
         await db.refresh(user)
 
     async def _reset_login_attempts(user) -> None:
-        """Clear counters and unlock the account on successful login."""
         user.failed_login_count = 0
         user.locked_until = None
         await db.commit()
         await db.refresh(user)
 
     # Try customer first
-    result = await db.execute(select(Customer).where(Customer.email_hash == email_hash))
+    result = await db.execute(select(Customer).where(Customer.email_hash == email_digest))
     customer = result.scalar_one_or_none()
     if customer:
-        # Check if account is currently locked
         if customer.locked_until and customer.locked_until > now:
             return None
         if verify_password(password, customer.password_hash):
@@ -154,12 +136,11 @@ async def login(
                 additional_claims={"role": "customer"},
             )
             return {"access_token": token, "token_type": "bearer"}
-        # Incorrect password; update failure count
         await _process_failed_login(customer)
         return None
 
     # Then try support staff
-    result = await db.execute(select(SupportStaff).where(SupportStaff.email_hash == email_hash))
+    result = await db.execute(select(SupportStaff).where(SupportStaff.email_hash == email_digest))
     staff = result.scalar_one_or_none()
     if staff:
         if staff.locked_until and staff.locked_until > now:

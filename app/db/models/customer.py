@@ -1,9 +1,8 @@
 """
-Customer model definition.
+    Customer model definition.
 """
-
 import uuid
-from sqlalchemy import Column, String, Boolean, Integer, DateTime, SmallInteger
+from sqlalchemy import Column, Boolean, Integer, DateTime, SmallInteger, LargeBinary, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
@@ -14,7 +13,7 @@ class Customer(Base):
     __tablename__ = "customers"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email_hash = Column(String, unique=True, nullable=False)
+    email_hash = Column(LargeBinary, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     password_algo = Column(String, nullable=False, server_default="bcrypt")
     password_changed_at = Column(DateTime(timezone=True), server_default=func.now())

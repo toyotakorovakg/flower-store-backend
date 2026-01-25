@@ -1,7 +1,6 @@
 """
     Pydantic models for authentication requests and responses.
 """
-
 from pydantic import BaseModel, EmailStr
 
 class LoginRequest(BaseModel):

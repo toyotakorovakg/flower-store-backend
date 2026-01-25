@@ -1,17 +1,26 @@
 """
     Authentication endpoints.
 
-    Handles user login, registration and logout. In a real application,
-    registration integrates with the database to create customers and
-    logout may implement token revocation.
+    Handles user login, registration and logout. Registration creates a
+    new customer, login issues a JWT, and logout simply instructs the client
+    to discard its token (stateless JWTs cannot be revoked server‑side without
+    additional infrastructure).
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, RegisterResponse
-from app.services.auth_service import login as login_service, register_user as register_service
+from app.schemas.auth import (
+    LoginRequest,
+    TokenResponse,
+    RegisterRequest,
+    RegisterResponse,
+)
+from app.services.auth_service import (
+    login as login_service,
+    register_user as register_service,
+)
 from app.db.session import get_session
 
 router = APIRouter()
@@ -28,7 +37,9 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_session)) 
     return TokenResponse(**result)
 
 @router.post("/register", response_model=RegisterResponse, summary="Register new customer")
-async def register(request: RegisterRequest, db: AsyncSession = Depends(get_session)) -> RegisterResponse:
+async def register(
+    request: RegisterRequest, db: AsyncSession = Depends(get_session)
+) -> RegisterResponse:
     """Create a new customer account and return a token."""
     result = await register_service(
         db,
@@ -48,6 +59,4 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_sess
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Logout current user")
 async def logout() -> Response:
     """Logout endpoint. Clients should delete their JWT on logout."""
-    # With stateless JWT there is nothing to do on the server. To implement
-    # token revocation you could store blacklisted token IDs in a database.
     return Response(status_code=status.HTTP_204_NO_CONTENT)
