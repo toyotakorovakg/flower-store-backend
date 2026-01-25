@@ -1,23 +1,22 @@
 """
-Authentication endpoints.
+    Authentication endpoints.
 
-Handles user login and token issuance. In a real application, this module
-would integrate with the database to verify users and enforce two‑factor
-authentication.
+    Handles user login, registration and logout. In a real application,
+    registration integrates with the database to create customers and
+    logout may implement token revocation.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.auth import LoginRequest, TokenResponse
-from app.services.auth_service import login as login_service
+from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, RegisterResponse
+from app.services.auth_service import login as login_service, register_user as register_service
 from app.db.session import get_session
 
 router = APIRouter()
 
-
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, summary="Login user")
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_session)) -> TokenResponse:
     """Authenticate the user and return an access token upon success."""
     result = await login_service(db, request.email, request.password)
@@ -27,3 +26,28 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_session)) 
             detail="Incorrect email or password",
         )
     return TokenResponse(**result)
+
+@router.post("/register", response_model=RegisterResponse, summary="Register new customer")
+async def register(request: RegisterRequest, db: AsyncSession = Depends(get_session)) -> RegisterResponse:
+    """Create a new customer account and return a token."""
+    result = await register_service(
+        db,
+        email=request.email,
+        password=request.password,
+        full_name=request.full_name,
+        phone=request.phone,
+        address=request.address,
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A user with this email already exists",
+        )
+    return RegisterResponse(**result)
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Logout current user")
+async def logout() -> Response:
+    """Logout endpoint. Clients should delete their JWT on logout."""
+    # With stateless JWT there is nothing to do on the server. To implement
+    # token revocation you could store blacklisted token IDs in a database.
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

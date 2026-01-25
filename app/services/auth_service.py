@@ -1,11 +1,9 @@
 """
-Authentication service.
+    Authentication service.
 
-This module implements user authentication by verifying email and password
-against the database. It leverages the crypto utilities to hash email
-addresses and the security module to verify password hashes.
+    This module implements user authentication by verifying email and password
+    against the database. It also provides user registration.
 """
-
 from __future__ import annotations
 
 import datetime
@@ -14,7 +12,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import verify_password, create_access_token
+from app.core.security import verify_password, create_access_token, get_password_hash
 from app.db.models.customer import Customer
 from app.db.models.support_staff import SupportStaff
 from app.utils.crypto import hash_email
@@ -24,16 +22,72 @@ from app.utils.time import utcnow
 MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_DURATION_MINUTES = 15
 
+async def register_user(
+    db: AsyncSession,
+    email: str,
+    password: str,
+    full_name: Optional[str] = None,
+    phone: Optional[str] = None,
+    address: Optional[str] = None,
+) -> Optional[dict]:
+    """Create a new customer account and return a token response.
+
+    If a user with the provided e‑mail already exists in either the
+    `customers` or `support_staff` table, this function returns ``None``.
+    Otherwise it creates a new ``Customer`` record, commits it and
+    returns a dictionary containing a JWT access token and the new user id.
+    """
+    email_hash = hash_email(email)
+
+    # Check existing customers
+    result = await db.execute(select(Customer).where(Customer.email_hash == email_hash))
+    if result.scalar_one_or_none():
+        return None
+
+    # Check support staff (prevent duplicate emails across roles)
+    result = await db.execute(select(SupportStaff).where(SupportStaff.email_hash == email_hash))
+    if result.scalar_one_or_none():
+        return None
+
+    # Hash the password
+    password_hash = get_password_hash(password)
+
+    # Create the customer record
+    new_customer = Customer(
+        email_hash=email_hash,
+        password_hash=password_hash,
+        # The following encrypted fields are stored as plain text for simplicity.
+        full_name_enc=full_name,
+        phone_enc=phone,
+        address_enc=address,
+        is_active=True,
+        is_verified=False,
+    )
+
+    db.add(new_customer)
+    await db.commit()
+    await db.refresh(new_customer)
+
+    # Issue JWT token for the new customer
+    token = create_access_token(
+        subject=str(new_customer.id),
+        additional_claims={"role": "customer"},
+    )
+    return {
+        "user_id": str(new_customer.id),
+        "access_token": token,
+        "token_type": "bearer",
+    }
 
 async def authenticate_user(
     db: AsyncSession, email: str, password: str
 ) -> tuple[Optional[str], Optional[str]]:
     """Authenticate a user by email and password.
 
-    Returns a tuple of (user_id, role) on success or (None, None) on failure.
-    Searches both the customers and support_staff tables. For customers,
-    the user role is ``customer``; for support staff, it is the value of
-    the ``role`` column (e.g. ``support`` or ``admin``).
+    Returns a tuple of (user_id, role) on success or (None, None) on
+    failure.  Searches both the customers and support_staff tables. For
+    customers, the user role is ``customer``; for support staff, it is the
+    value of the ``role`` column (e.g. ``support`` or ``admin``).
     """
     email_hash = hash_email(email)
 
@@ -55,17 +109,14 @@ async def authenticate_user(
 
     return None, None
 
-
 async def login(
     db: AsyncSession, email: str, password: str
 ) -> Optional[dict]:
     """Attempt to log in the user and return a token response.
 
-    This implementation adds basic brute‑force protection. It tracks the number
-    of failed login attempts on each account and temporarily locks the account
-    after a configurable number of consecutive failures. When a lock is
-    active, all login attempts will be rejected until the lock period
-    expires. On successful authentication the counters are reset.
+    This implementation adds basic brute‑force protection. It tracks the
+    number of failed login attempts on each account and temporarily locks
+    the account after a configurable number of consecutive failures.
     """
     email_hash = hash_email(email)
     now = utcnow()
