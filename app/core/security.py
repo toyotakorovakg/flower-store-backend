@@ -29,7 +29,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a new password using bcrypt."""
+    """
+    Хеширует новый пароль. Минимальная длина 8 символов, длинные пароли
+    автоматически проходят через bcrypt_sha256, что снимает ограничение в 72 байта.
+    """
+    if len(password) < 8:
+        raise ValueError("Password too short; minimum length is 8 characters.")
     return pwd_context.hash(password)
 
 
