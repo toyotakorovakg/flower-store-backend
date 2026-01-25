@@ -17,7 +17,7 @@ from fastapi import HTTPException, status
 from app.core.settings import settings
 
 # Password hashing context. The bcrypt scheme defaults to a secure cost factor.
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
