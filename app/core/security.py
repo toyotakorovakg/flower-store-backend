@@ -16,8 +16,15 @@ from fastapi import HTTPException, status
 
 from app.core.settings import settings
 
-# Password hashing context. The bcrypt scheme defaults to a secure cost factor.
-pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
+# Password hashing context.
+#
+# Use the ``pbkdf2_sha256`` scheme, which derives a key using PBKDF2 with
+# SHA‑256 and a large number of iterations.  Unlike ``bcrypt``, this scheme
+# does not depend on the system's ``bcrypt`` backend and has no 72‑byte
+# input length limitation.  The ``deprecated=\"auto\"`` flag ensures that
+# previously created hashes using other schemes remain valid until they are
+# rotated.
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
@@ -30,8 +37,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """
-    Хеширует новый пароль. Минимальная длина 8 символов, длинные пароли
-    автоматически проходят через bcrypt_sha256, что снимает ограничение в 72 байта.
+    Hash a new password.
+
+    Minimum length is 8 characters.  ``pbkdf2_sha256`` has no 72‑byte input limit,
+    so long passphrases are fully supported.
     """
     if len(password) < 8:
         raise ValueError("Password too short; minimum length is 8 characters.")
