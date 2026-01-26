@@ -9,8 +9,12 @@ class Token(BaseModel):
     token_type: str
     user_id: str
 
-# Эндпоинт ждет TokenResponse, делаем его наследником Token
+# Ответ при логине
 class TokenResponse(Token):
+    pass
+
+# Ответ при регистрации (добавляем этот класс, чтобы исправить ошибку)
+class RegisterResponse(Token):
     pass
 
 # Данные внутри токена (для декодирования)
@@ -23,24 +27,23 @@ class TokenData(BaseModel):
 class UserBase(BaseModel):
     email: EmailStr
 
-# Схема для логина
+# Запрос на логин
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-# Схема для регистрации (используется в api/v1/endpoints/auth.py)
+# Запрос на регистрацию
 class RegisterRequest(UserBase):
     password: str = Field(..., min_length=8)
     full_name: str
     phone: str
     address: str
 
-# Схема для создания пользователя (используется в services/auth_service.py)
-# Мы делаем её просто алиасом (наследником) RegisterRequest, чтобы они были идентичны
+# Алиас для сервиса (UserCreate = RegisterRequest)
 class UserCreate(RegisterRequest):
     pass
 
-# Схема для возврата данных пользователя (без пароля)
+# Схема пользователя (без пароля)
 class User(UserBase):
     id: str
     is_active: bool
