@@ -7,6 +7,8 @@ but importing it ensures that model metadata can be collected for things
 like migrations.
 """
 from sqlalchemy.orm import DeclarativeBase, declared_attr
+from app.db.base_class import Base  # noqa
+from app.db.models.customer import Customer  # noqa
 
 
 class Base(DeclarativeBase):
