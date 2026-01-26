@@ -1,26 +1,31 @@
-"""
-    Pydantic models for authentication requests and responses.
-"""
-from pydantic import BaseModel, EmailStr
+from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
 
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-class TokenResponse(BaseModel):
+# Схема для токена (ответ при успешном логине/регистрации)
+class Token(BaseModel):
     access_token: str
-    token_type: str = "bearer"
-
-class RegisterRequest(BaseModel):
-    """Request body for user registration."""
-    email: EmailStr
-    password: str
-    full_name: str | None = None
-    phone: str | None = None
-    address: str | None = None
-
-class RegisterResponse(BaseModel):
-    """Response body for successful registration."""
+    token_type: str
     user_id: str
-    access_token: str
-    token_type: str = "bearer"
+
+# Данные внутри токена
+class TokenData(BaseModel):
+    user_id: Optional[str] = None
+
+# Базовая схема пользователя
+class UserBase(BaseModel):
+    email: EmailStr
+
+# Схема для регистрации (То, что приходит от фронтенда)
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8)
+    full_name: str
+    phone: str
+    address: str
+
+# Схема для отображения пользователя (без пароля)
+class User(UserBase):
+    id: str
+    is_active: bool
+    
+    class Config:
+        from_attributes = True
