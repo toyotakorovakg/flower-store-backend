@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, LargeBinary, SmallInteger
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+# Импорт Base из base_class разрывает циклический импорт
 from app.db.base_class import Base
 
 class Customer(Base):
