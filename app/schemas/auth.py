@@ -15,6 +15,11 @@ class TokenData(BaseModel):
 class UserBase(BaseModel):
     email: EmailStr
 
+# --- ДОБАВЛЕНО: Схема для запроса логина ---
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
 # Схема для регистрации (То, что приходит от фронтенда)
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
