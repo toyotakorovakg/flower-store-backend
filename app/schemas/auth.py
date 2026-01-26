@@ -1,11 +1,15 @@
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 
-# Схема для токена (ответ при успешном логине/регистрации)
+# Основная схема токена
 class Token(BaseModel):
     access_token: str
     token_type: str
     user_id: str
+
+# Добавляем TokenResponse как наследника Token, чтобы удовлетворить импорт
+class TokenResponse(Token):
+    pass
 
 # Данные внутри токена
 class TokenData(BaseModel):
@@ -15,19 +19,19 @@ class TokenData(BaseModel):
 class UserBase(BaseModel):
     email: EmailStr
 
-# --- ДОБАВЛЕНО: Схема для запроса логина ---
+# Схема для запроса логина
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-# Схема для регистрации (То, что приходит от фронтенда)
+# Схема для регистрации
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
     full_name: str
     phone: str
     address: str
 
-# Схема для отображения пользователя (без пароля)
+# Схема для отображения пользователя
 class User(UserBase):
     id: str
     is_active: bool
