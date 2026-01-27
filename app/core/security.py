@@ -7,7 +7,7 @@ import base64
 from cryptography.fernet import Fernet
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
 
 # --- Хелпер для шифрования (Fernet) ---
 def _get_fernet() -> Fernet:

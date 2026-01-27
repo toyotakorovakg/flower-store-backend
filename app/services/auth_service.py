@@ -7,7 +7,6 @@ from fastapi import HTTPException, status
 from app.db.models.customer import Customer
 from app.schemas.auth import UserCreate, Token
 from app.core import security
-from app.core.config import settings
 
 
 async def register_user(
@@ -18,30 +17,38 @@ async def register_user(
     full_name: str,
     phone: str,
     address: str,
-) -> dict[str, str]:
+) -> Dict[str, str]:
     """
-    Создаёт нового клиента и возвращает словарь с access_token, token_type и user_id.
-    Сигнатура соответствует ожиданиям роутера.
+    Создаёт нового клиента и возвращает словарь с токеном. Ограничивает
+    длину пароля до 72 байт, поскольку bcrypt не обрабатывает более длинные
+    строки:contentReference[oaicite:1]{index=1}.
     """
-    # 1. Хешируем email и ищем существующего пользователя
-    email_hash_bytes = security.hash_email(email)
-    query = select(Customer).where(Customer.email_hash == email_hash_bytes)
-    result = await db.execute(query)
+    if len(password.encode("utf-8")) > 72:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password too long. Maximum length is 72 characters.",
+        )
+
+    # Проверяем, существует ли пользователь
+    email_hash = security.hash_email(email)
+    result = await db.execute(select(Customer).where(Customer.email_hash == email_hash))
     existing_user = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User with this email already exists",
         )
-    # 2. Хешируем пароль и шифруем PII
-    password_hash_bytes = security.get_password_hash(password)
+
+    # Хешируем пароль и шифруем PII
+    password_hash = security.get_password_hash(password)
     full_name_enc = security.encrypt_data(full_name)
     phone_enc = security.encrypt_data(phone)
     address_enc = security.encrypt_data(address)
-    # 3. Создаём запись клиента
+
+    # Создаём и сохраняем клиента
     new_customer = Customer(
-        email_hash=email_hash_bytes,
-        password_hash=password_hash_bytes,
+        email_hash=email_hash,
+        password_hash=password_hash,
         full_name_enc=full_name_enc,
         phone_enc=phone_enc,
         address_enc=address_enc,
@@ -49,19 +56,19 @@ async def register_user(
         is_verified=False,
         password_algo="bcrypt",
     )
-    # 4. Сохраняем в БД
     db.add(new_customer)
     try:
         await db.commit()
         await db.refresh(new_customer)
-    except Exception as e:
+    except Exception as exc:
         await db.rollback()
-        print(f"Error creating user: {e}")
+        print(f"Error creating user: {exc}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error creating user record",
         )
-    # 5. Генерируем JWT
+
+    # Генерируем JWT
     access_token = security.create_access_token(subject=new_customer.id)
     return {
         "access_token": access_token,
@@ -72,9 +79,9 @@ async def register_user(
 
 async def register_service(user_in: UserCreate, db: AsyncSession) -> Token:
     """
-    Обёртка для обратной совместимости. Принимает UserCreate и возвращает Token.
+    Обёртка для совместимости со старой сигнатурой (принимает UserCreate).
     """
-    token_data = await register_user(
+    token_dict = await register_user(
         db=db,
         email=user_in.email,
         password=user_in.password,
@@ -82,25 +89,26 @@ async def register_service(user_in: UserCreate, db: AsyncSession) -> Token:
         phone=user_in.phone,
         address=user_in.address,
     )
-    return Token(**token_data)
+    return Token(**token_dict)
 
 
 async def login(
     db: AsyncSession,
     email: str,
     password: str,
-) -> Optional[dict[str, str]]:
+) -> Optional[Dict[str, str]]:
     """
-    Аутентифицирует пользователя. Возвращает словарь с токеном или None.
+    Аутентифицирует пользователя и возвращает словарь с токеном. Возвращает None,
+    если пользователь не найден или пароль неверный.
     """
-    email_hash_bytes = security.hash_email(email)
-    query = select(Customer).where(Customer.email_hash == email_hash_bytes)
-    result = await db.execute(query)
+    email_hash = security.hash_email(email)
+    result = await db.execute(select(Customer).where(Customer.email_hash == email_hash))
     user = result.scalar_one_or_none()
     if not user:
         return None
     if not security.verify_password(password, user.password_hash):
         return None
+
     access_token = security.create_access_token(subject=user.id)
     return {
         "access_token": access_token,
@@ -111,6 +119,6 @@ async def login(
 
 async def login_service(user_in: UserCreate, db: AsyncSession):
     """
-    Обёртка для обратной совместимости. Принимает UserCreate.
+    Обёртка для совместимости: принимает UserCreate и вызывает login.
     """
     return await login(db, user_in.email, user_in.password)
