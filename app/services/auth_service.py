@@ -19,16 +19,8 @@ async def register_user(
     address: str,
 ) -> Dict[str, str]:
     """
-    Создаёт нового клиента и возвращает словарь с токеном. Ограничивает
-    длину пароля до 72 байт, поскольку bcrypt не обрабатывает более длинные
-    строки:contentReference[oaicite:1]{index=1}.
+    Создаёт нового клиента и возвращает словарь с access_token, token_type и user_id.
     """
-    if len(password.encode("utf-8")) > 72:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password too long. Maximum length is 72 characters.",
-        )
-
     # Проверяем, существует ли пользователь
     email_hash = security.hash_email(email)
     result = await db.execute(select(Customer).where(Customer.email_hash == email_hash))
@@ -39,7 +31,7 @@ async def register_user(
             detail="User with this email already exists",
         )
 
-    # Хешируем пароль и шифруем PII
+    # Хешируем пароль и шифруем личные данные
     password_hash = security.get_password_hash(password)
     full_name_enc = security.encrypt_data(full_name)
     phone_enc = security.encrypt_data(phone)
@@ -54,7 +46,7 @@ async def register_user(
         address_enc=address_enc,
         is_active=True,
         is_verified=False,
-        password_algo="bcrypt",
+        password_algo="pbkdf2_sha256",  # записываем используемую схему
     )
     db.add(new_customer)
     try:
@@ -79,9 +71,9 @@ async def register_user(
 
 async def register_service(user_in: UserCreate, db: AsyncSession) -> Token:
     """
-    Обёртка для совместимости со старой сигнатурой (принимает UserCreate).
+    Старая обёртка: принимает UserCreate и возвращает экземпляр Token.
     """
-    token_dict = await register_user(
+    token_data = await register_user(
         db=db,
         email=user_in.email,
         password=user_in.password,
@@ -89,7 +81,7 @@ async def register_service(user_in: UserCreate, db: AsyncSession) -> Token:
         phone=user_in.phone,
         address=user_in.address,
     )
-    return Token(**token_dict)
+    return Token(**token_data)
 
 
 async def login(
@@ -98,14 +90,14 @@ async def login(
     password: str,
 ) -> Optional[Dict[str, str]]:
     """
-    Аутентифицирует пользователя и возвращает словарь с токеном. Возвращает None,
-    если пользователь не найден или пароль неверный.
+    Аутентифицирует пользователя. Возвращает словарь с токеном или None.
     """
     email_hash = security.hash_email(email)
     result = await db.execute(select(Customer).where(Customer.email_hash == email_hash))
     user = result.scalar_one_or_none()
     if not user:
         return None
+    # Проверяем пароль через pbkdf2_sha256
     if not security.verify_password(password, user.password_hash):
         return None
 
@@ -119,6 +111,6 @@ async def login(
 
 async def login_service(user_in: UserCreate, db: AsyncSession):
     """
-    Обёртка для совместимости: принимает UserCreate и вызывает login.
+    Старая обёртка: принимает UserCreate и делегирует login().
     """
     return await login(db, user_in.email, user_in.password)
